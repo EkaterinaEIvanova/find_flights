@@ -19,7 +19,7 @@ class Finding(object):
 
     def _get_content(self):
         headers = {'Content-Type': 'application/x-www-form-urlencoded',
-                   'Cookie':'startConnection={}@{}@{}@{}1; ABSESS=kbfj0b77ueq4sh5s9gpg8np392;'.
+                   'Cookie':'startConnection={}@{}@{}@{}; ABSESS=kbfj0b77ueq4sh5s9gpg8np392;'.
                        format(self.i_iata, self.o_iata, self.idata, self.odata)
                    }
 
@@ -65,7 +65,7 @@ class Finding(object):
                         self.flights[i][n].pop(4)
                     if fl[-1] == fl[-2]:
                         self.flights[i][n].pop(-1)
-                    self.flights[i][n].append(round(float(fl[3])+float(fl[-1]), 2))
+                    self.flights[i][n].append(float(fl[3].replace(',',''))+float(fl[-1].replace(',','')))
                 self.flights[i].sort(key=lambda j: j[5])
 
             for i, flights in enumerate(self.flights):
