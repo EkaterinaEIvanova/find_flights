@@ -10,10 +10,14 @@ class Finding(object):
         self.o_name = args.o_name
         self.idata = args.idata
         self.odata = args.odata
-        self.resp_body  = ''
+        self.content = self._get_content()
+        self.outbound_data = ''
+        self.return_data = ''
+        self.currency = ''
         self.flights = []
+        self.flights_str = []
 
-    def get_body(self):
+    def _get_content(self):
         headers = {'Content-Type': 'application/x-www-form-urlencoded',
                    'Cookie':'startConnection={}@{}@{}@{}1; ABSESS=kbfj0b77ueq4sh5s9gpg8np392;'.
                        format(self.i_iata, self.o_iata, self.idata, self.odata)
@@ -33,16 +37,54 @@ class Finding(object):
                 '_ajax[requestParams][openDateOverview]': '',
                 '_ajax[requestParams][oneway]': '',
                 }
-        self.resp_body = requests.post(url, headers=headers, data=data).json()['templates']['main']
+        content = requests.post(url, headers=headers, data=data).json()['templates']['main']
+        if content != ' <div id="vacancy_infos"></div> ':
+            return content
+        else:
+            return None
 
     def get_flights(self):
-        tree = html.fromstring(self.resp_body)
-        outbound_data = tree.xpath('// *[@id="flighttables"]/div[1]/div[1]/div[1]/div/div/text()')[0]
-        return_data = tree.xpath('//*[@id="flighttables"]/div[3]/div[1]/div[1]/div/div/text()')[0]
-        currency = tree.xpath('//*[@id="flight-table-header-price-ECO_COMF"]/text()')[0]
+        if self.content:
+            tree = html.fromstring(self.content)
+            self.outbound_data = tree.xpath('// *[@id="flighttables"]/div[1]/div[1]/div[1]/div/div/text()')[0]
+            self.return_data = tree.xpath('//*[@id="flighttables"]/div[3]/div[1]/div[1]/div/div/text()')[0]
+            self.currency = tree.xpath('//*[@id="flight-table-header-price-ECO_COMF"]/text()')[0]
 
-        for tb in tree.xpath('.//table[@class="flighttable"]'):
-            flights = []
-            for tr in tb.xpath('./tbody/tr[position() mod 2 = 1]'):
-                flights.append(tr.xpath('./td//text()[string-length()>1]'))
-            self.flights.append(flights)
+            for tb in tree.xpath('.//table[@class="flighttable"]'):
+                flights = []
+                for tr in tb.xpath('./tbody/tr[position() mod 2 = 1]'):
+                    flights.append(tr.xpath('./td//text()[not(contains(.,"seat"))][string-length()>1]'))
+                self.flights.append(flights)
+
+    def _get_flights_str(self):
+        if self.flights:
+            for i, flights in enumerate(self.flights):
+                flights_str = []
+                for n, fl in enumerate(flights):
+                    if fl[3] == fl[4]:
+                        self.flights[i][n].pop(4)
+                    if fl[-1] == fl[-2]:
+                        self.flights[i][n].pop(-1)
+                    self.flights[i][n].append(round(float(fl[3])+float(fl[-1]), 2))
+                self.flights[i].sort(key=lambda j: j[5])
+
+            for i, flights in enumerate(self.flights):
+                flights_str = []
+                for n, fl in enumerate(flights):
+                    self.flights[i][n][-1] = str(self.flights[i][n][-1])
+                    flights_str.append(' '.join(self.flights[i][n]))
+                self.flights_str.append('\n'.join(flights_str))
+
+    def __str__(self):
+        head = u'start  end    duration   {},econ{},comf{},sum'.format(self.currency.rstrip(),
+                                                                       self.currency.rstrip(),
+                                                                       self.currency.rstrip())
+        if self.flights:
+            return '{}\n{}\n{}\n\n{}\n{}\n{}'.format(self.outbound_data.encode('utf-8').lstrip(),
+                                                 head.encode('utf-8'),
+                                                 self.flights_str[0].encode('utf-8'),
+                                                 self.return_data.encode('utf-8').lstrip(),
+                                                 head.encode('utf-8'),
+                                                 self.flights_str[1].encode('utf-8'))
+
+

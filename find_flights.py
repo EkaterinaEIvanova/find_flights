@@ -8,28 +8,31 @@ def inspect_data(args):
     iiata = client.get(code=args.iIATA)
     oiata = client.get(code=args.oIATA)
 
-    if iiata and oiata :
+    if iiata and oiata:
         args.i_name = iiata[0][u'name']
         args.o_name = oiata[0][u'name']
 
 def main():
-    '''  parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('-iIATA', type=str, help='')
     parser.add_argument('-oIATA', type=str, help='')
     parser.add_argument('-idata', type=str, help='')
     parser.add_argument('-odata', type=str, help='')
 
-    args = parser.parse_args()'''
+    args = parser.parse_args()
+    '''
     args = argparse.Namespace()
     args.iIATA = 'LON'
-    args.oIATA = 'BER'
-    args.idata = '2017-02-22'
-    args.odata = '2017-02-22'
+    args.oIATA = 'SOF'
+    args.idata = '2017-03-23'
+    args.odata = '2017-03-30'
+    '''
+
     inspect_data(args)
     f = Finding(args)
-    f.get_rbody()
     f.get_flights()
-   # f.get_flights()
+    f._get_flights_str()
+    print(f)
 
 if __name__ == "__main__":
     main()
