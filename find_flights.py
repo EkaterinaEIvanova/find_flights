@@ -13,28 +13,29 @@ def inspect_data(args):
     :return: True/False
     """
     client = IATACodesClient('15be9538-c84a-465d-b82d-6d668e7f1b4e')
+
     try:
         args.source_name = client.get(code=args.sourceIATA)[0][u'name']
-        args.destin_name = client.get(code=args.destinationIATA)[0][u'name']
+        args.destination_name = client.get(code=args.destinationIATA)[0][u'name']
     except LookupError:
         print ('IATA-code is not correct. Enter correct code.')
         return False
+
     try:
         datetime.strptime(args.outbound_date, '%Y-%m-%d')
         if args.return_date:
             datetime.strptime(args.return_date, '%Y-%m-%d')
-            args.oneway = ''
+            args.one_way = ''
         else:
             args.return_date = args.outbound_date
-            args.oneway = 'on'
+            args.one_way = 'on'
     except ValueError:
-        print ('Incorrect date format. Please, enter the date in the format Y-M-D')
+        print ('Incorrect date format. Please, enter the date in the format Y-M-D.')
         return False
     return True
 
 
 def main():
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True, help='IATA source airport code')
     parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True, help='IATA destination airport code')
@@ -42,19 +43,22 @@ def main():
     parser.add_argument('-rdate', '--return_date', type=str, help='Return date, format Y-M-D')
     args = parser.parse_args()
 
-    '''
-    args = argparse.Namespace()
-    args.sourceIATA = 'LON'
-    args.destinationIATA = 'SOF'
-    args.outbound_date = '2017-02-10'
-    args.return_date = ''
-    '''
-
-
     if inspect_data(args):
         f = Finding(args)
-        f.get_flights()
-        print(f)
+        f.get_content()
+        if f.content:
+            f.get_flights()
+            print(f)
+        else:
+            print("Couldn't find flights from {}({}) to {}({}) on {}/{}").format(
+                args.source_name,
+                args.sourceIATA,
+                args.destination_name,
+                args.destinationIATA,
+                args.outbound_date,
+                args.return_date,
+            )
+
 
 if __name__ == "__main__":
     main()
