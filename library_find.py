@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import requests
 from lxml import html
 
@@ -18,6 +19,10 @@ class Finding(object):
         self.flights_str = []
 
     def _get_content(self):
+        '''
+        Делаю http-запрос к сайту, получаю ответ и если есть, то забираю из него контент.
+        :return:content
+        '''
         headers = {'Content-Type': 'application/x-www-form-urlencoded',
                    'Cookie':'startConnection={}@{}@{}@{}; ABSESS=kbfj0b77ueq4sh5s9gpg8np392;'.
                        format(self.i_iata, self.o_iata, self.idata, self.odata)
@@ -44,6 +49,10 @@ class Finding(object):
             return None
 
     def get_flights(self):
+        '''
+           Забираю из контента только нужные данные по рейсам.
+        :return:
+        '''
         if self.content:
             tree = html.fromstring(self.content)
             self.outbound_data = tree.xpath('// *[@id="flighttables"]/div[1]/div[1]/div[1]/div/div/text()')[0]
@@ -56,35 +65,32 @@ class Finding(object):
                     flights.append(tr.xpath('./td//text()[not(contains(.,"seat"))][string-length()>1]'))
                 self.flights.append(flights)
 
-    def _get_flights_str(self):
+    def sort(self):
+        '''
+         В полученный рейсах высчитывается общая стоимость переета, данные преобразуются в строки для вывода
+        :return:
+        '''
         if self.flights:
             for i, flights in enumerate(self.flights):
-                flights_str = []
                 for n, fl in enumerate(flights):
-                    if fl[3] == fl[4]:
-                        self.flights[i][n].pop(4)
-                    if fl[-1] == fl[-2]:
-                        self.flights[i][n].pop(-1)
-                    self.flights[i][n].append(float(fl[3].replace(',',''))+float(fl[-1].replace(',','')))
-                self.flights[i].sort(key=lambda j: j[5])
-
-            for i, flights in enumerate(self.flights):
-                flights_str = []
-                for n, fl in enumerate(flights):
-                    self.flights[i][n][-1] = str(self.flights[i][n][-1])
-                    flights_str.append(' '.join(self.flights[i][n]))
-                self.flights_str.append('\n'.join(flights_str))
+                    flights[n].append(float(fl[3].replace(',', '')) + float(fl[-1].replace(',', '')))
+                flights.sort(key=lambda j: j[-1])
+                self.flights[i] = flights
 
     def __str__(self):
-        head = u'start  end    duration   {},econ{},comf{},sum'.format(self.currency.rstrip(),
-                                                                       self.currency.rstrip(),
-                                                                       self.currency.rstrip())
         if self.flights:
+            for flights in self.flights:
+                for fl in flights:
+                    fl[-1] = str(fl[-1])
+                self.flights_str.append('\n'.join([' '.join(fl) for fl in flights]))
+            head = u'start  end    duration   {},econ{},econ1{},comf{},sum{}'.format(self.currency.rstrip(),
+                                                                            self.currency.rstrip(),
+                                                                            self.currency.rstrip(),
+                                                                            self.currency.rstrip(),
+                                                                            self.currency.rstrip())
             return '{}\n{}\n{}\n\n{}\n{}\n{}'.format(self.outbound_data.encode('utf-8').lstrip(),
                                                  head.encode('utf-8'),
                                                  self.flights_str[0].encode('utf-8'),
                                                  self.return_data.encode('utf-8').lstrip(),
                                                  head.encode('utf-8'),
                                                  self.flights_str[1].encode('utf-8'))
-
-

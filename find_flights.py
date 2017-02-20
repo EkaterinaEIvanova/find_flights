@@ -20,18 +20,11 @@ def main():
     parser.add_argument('-odata', type=str, help='')
 
     args = parser.parse_args()
-    '''
-    args = argparse.Namespace()
-    args.iIATA = 'LON'
-    args.oIATA = 'SOF'
-    args.idata = '2017-03-23'
-    args.odata = '2017-03-30'
-    '''
 
     inspect_data(args)
     f = Finding(args)
     f.get_flights()
-    f._get_flights_str()
+    f.sort()
     print(f)
 
 if __name__ == "__main__":
