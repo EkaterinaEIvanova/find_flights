@@ -24,7 +24,6 @@ def main():
     inspect_data(args)
     f = Finding(args)
     f.get_flights()
-    f.sort()
     print(f)
 
 if __name__ == "__main__":
