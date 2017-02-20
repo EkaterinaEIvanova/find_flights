@@ -23,6 +23,10 @@ def inspect_data(args):
         datetime.strptime(args.outbound_date, '%Y-%m-%d')
         if args.return_date:
             datetime.strptime(args.return_date, '%Y-%m-%d')
+            args.oneway = ''
+        else:
+            args.return_date = args.outbound_date
+            args.oneway = 'on'
     except ValueError:
         print ('Incorrect date format. Please, enter the date in the format Y-M-D')
         return False
@@ -30,12 +34,22 @@ def inspect_data(args):
 
 
 def main():
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True, help='IATA source airport code')
     parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True, help='IATA destination airport code')
     parser.add_argument('-odate', '--outbound_date', type=str, required=True, help='Outbound date, format Y-M-D',)
     parser.add_argument('-rdate', '--return_date', type=str, help='Return date, format Y-M-D')
     args = parser.parse_args()
+
+    '''
+    args = argparse.Namespace()
+    args.sourceIATA = 'LON'
+    args.destinationIATA = 'SOF'
+    args.outbound_date = '2017-02-10'
+    args.return_date = ''
+    '''
+
 
     if inspect_data(args):
         f = Finding(args)
