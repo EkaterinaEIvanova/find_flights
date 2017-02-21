@@ -30,13 +30,12 @@ def inspect_data(args):
             args.return_date = args.outbound_date
             args.one_way = 'on'
     except ValueError:
-        print ('Incorrect date format. Please, enter the date in the format Y-M-D.')
+        print ('Incorrect date format. Please, enter the correct date in the format Y-M-D.')
         return False
     return True
 
 
 def main():
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True, help='IATA source airport code')
     parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True, help='IATA destination airport code')
@@ -44,20 +43,13 @@ def main():
     parser.add_argument('-rdate', '--return_date', type=str, help='Return date, format Y-M-D')
     args = parser.parse_args()
 
-    '''
-    args = argparse.Namespace()
-    args.sourceIATA = 'LON'
-    args.destinationIATA = 'BER'
-    args.outbound_date = '2017-03-23'
-    args.return_date = ''
-    '''
-
     if inspect_data(args):
         f = Finding(args)
         f.get_content()
         if f.content:
             f.get_flights()
             f.mix()
+            f.sort()
             print(f)
         else:
             print("Couldn't find flights from {}({}) to {}({}) on {}/{}").format(
@@ -68,6 +60,7 @@ def main():
                 args.outbound_date,
                 args.return_date,
             )
+
 
 if __name__ == "__main__":
     main()
