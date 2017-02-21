@@ -16,6 +16,7 @@ class Finding(object):
         self.return_data = ''
         self.currency = ''
         self.flights = []
+        self.flights_mix = []
         self.content = []
 
     def get_content(self):
@@ -43,7 +44,7 @@ class Finding(object):
                 '_ajax[requestParams][childCount]': '0',
                 '_ajax[requestParams][infantCount]': '0',
                 '_ajax[requestParams][openDateOverview]': '',
-                '_ajax[requestParams][one_way]': '{}'.format(self.one_way),
+                '_ajax[requestParams][oneway]': '{}'.format(self.one_way),
                 }
         content = requests.post(url, headers=headers, data=data).json()
         if content.get('templates') and content['templates'].get('main'):
@@ -65,28 +66,30 @@ class Finding(object):
             for tb in tree.xpath('.//table[@class="flighttable"]'):
                 flights = []
                 for tr in tb.xpath('./tbody/tr[position() mod 2 = 1]'):
-                    flights.append(tr.xpath('./td[2]/span/*/text()|td[3]/text()|./td[4]/span/text()|'
-                                            './td[6]/span/text()|./td[6]/label/div[1]/span//text()|'
-                                            './td[5]/span/text()|./td[5]/label/div[1]/span//text()'))
+                    data = tr.xpath('./td[2]/span/*/text()|td[3]/text()|./td[4]/span/text()')
+                    econ_data = tr.xpath('./td[6]/span/text()|./td[6]/label/div[1]/span//text()')[0]
+                    comf_data = tr.xpath('./td[5]/span/text()|./td[5]/label/div[1]/span//text()')[0]
+                    flights.append(data + ['econ', self.currency, float(econ_data.replace(',', ''))])
+                    flights.append(data + ['comf', self.currency, float(comf_data.replace(',', ''))])
                 self.flights.append(flights)
 
+    def mix(self):
+        if self.one_way:
+            self.flights_mix = self.flights[0]
+            self.flights_mix.sort(key=lambda j: j[-1])
+            for i, fl in enumerate(self.flights_mix):
+                self.flights_mix[i][-1] = str(self.flights_mix[i][-1])
+        else:
+            self.flights_mix = [outb_fl + return_fl + [float(outb_fl[-1]) + float(return_fl[-1])]
+                                for outb_fl in self.flights[0] for return_fl in self.flights[1]]
+            self.flights_mix.sort(key=lambda j: j[-1])
+            for i, fl in enumerate(self.flights_mix):
+                self.flights_mix[i][-1] = str(self.flights_mix[i][-1])
+                self.flights_mix[i][-2] = str(self.flights_mix[i][-2])
+                self.flights_mix[i][6] = str(self.flights_mix[i][6])
+
     def __str__(self):
-        flights_str = []
-        if self.flights:
-            for i, flights in enumerate(self.flights):
-                self.flights[i].sort(key=lambda j: j[-2])
-                flights_str.append('\n'.join([' '.join(fl) for fl in flights]))
-            head = u'start end stops duration   {},econ{},comf'.format(self.currency.rstrip(),
-                                                                       self.currency.rstrip(),
-                                                                       self.currency.rstrip())
-            if self.one_way:
-                return '{}\n{}\n{}\n'.format(self.outbound_data.encode('utf-8').lstrip(),
-                                             head.encode('utf-8'),
-                                             flights_str[0].encode('utf-8'))
-            else:
-                return '{}\n{}\n{}\n\n{}\n{}\n{}'.format(self.outbound_data.encode('utf-8').lstrip(),
-                                                         head.encode('utf-8'),
-                                                         flights_str[0].encode('utf-8'),
-                                                         self.return_data.encode('utf-8').lstrip(),
-                                                         head.encode('utf-8'),
-                                                         flights_str[1].encode('utf-8'))
+        flights_str = '\n'.join([' '.join(fl) for fl in self.flights_mix])
+        return '{}\n{}\n{}'.format(self.outbound_data.encode('utf-8').lstrip(),
+                                 self.return_data.encode('utf-8').lstrip(),
+                                 (flights_str).encode('utf-8'))
