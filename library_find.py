@@ -40,8 +40,8 @@ class Finding(object):
         :return:content
         """
         content = requests.post(self._url, headers=self._headers, data=self._data).json()
-        if content.get('templates') and content['templates'].get('main') and \
-                        content['templates']['main'] != ' <div id="vacancy_infos"></div> ':
+        if content.get('templates') and content['templates'].get('main') \
+                and content['templates']['main'] != ' <div id="vacancy_infos"></div> ':
                 self.content = content['templates']['main']
 
     def get_flights(self):
@@ -55,15 +55,16 @@ class Finding(object):
             if not self.one_way:
                 self.return_data = tree.xpath('//*[@id="flighttables"]/div[3]/div[1]/div[1]/div/div/text()')[0]
             self.currency = tree.xpath('//*[@id="flight-table-header-price-ECO_COMF"]/text()')[0]
+            classes = tree.xpath('.//table[@class="flighttable"]/thead/tr[1]/td/div/label//text()')
 
             for tb in tree.xpath('.//table[@class="flighttable"]'):
                 flights = []
                 for tr in tb.xpath('./tbody/tr[position() mod 2 = 1]'):
                     data = tr.xpath('./td[2]/span/*/text()|td[3]/text()|./td[4]/span/text()')
-                    econ_data = tr.xpath('./td[6]/span/text()|./td[6]/label/div[1]/span//text()')[0]
-                    comf_data = tr.xpath('./td[5]/span/text()|./td[5]/label/div[1]/span//text()')[0]
-                    flights.append(data + ['econ', self.currency, econ_data.replace(',', '')])
-                    flights.append(data + ['comf', self.currency, comf_data.replace(',', '')])
+                    for i, cl in enumerate(classes):
+                        price = tr.xpath('./td[{}]/span/text()|./td[{}]/label/div[1]/span//text()'.format(i+5, i+5))
+                        if price:
+                            flights.append(data + [cl, self.currency, price[0].replace(',','')])
                 self.flights.append(flights)
 
     def mix(self):
