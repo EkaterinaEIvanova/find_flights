@@ -1,2 +1,2 @@
-request==0.0.12
-iata-codes==0.0.5
+lxml==3.7.3
+requests==2.13.0

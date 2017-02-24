@@ -1,26 +1,19 @@
 # -*- coding: utf-8 -*-
+""" Получение с cmd необходимых параметров, проверка на корректность введенной
+даты и получение в соотвествии с параметрами всевозможных вариантов рейсов
+библиотеки Finding"""
 import argparse
 from datetime import datetime
-from iata_codes.cities import IATACodesClient
 
-from library_find import Finding
+from library_find import FindingFlights
 
 
-def inspect_data(args):
+def inspect_date(args):
     """
-    Проверяю правильность введенных IATA кодов, и дат. Если IATA верны сопоставляю им полное название аэропортов.
-    :param args:
+    Проверяю правильность введенных дат.
+    :param args
     :return: True/False
     """
-    client = IATACodesClient('15be9538-c84a-465d-b82d-6d668e7f1b4e')
-
-    try:
-        args.source_name = client.get(code=args.sourceIATA)[0][u'name']
-        args.destination_name = client.get(code=args.destinationIATA)[0][u'name']
-    except LookupError:
-        print ('IATA-code is not correct. Enter correct code.')
-        return False
-
     try:
         datetime.strptime(args.outbound_date, '%Y-%m-%d')
         if args.return_date:
@@ -30,36 +23,51 @@ def inspect_data(args):
             args.return_date = args.outbound_date
             args.one_way = 'on'
     except ValueError:
-        print ('Incorrect date format. Please, enter the correct date in the format Y-M-D.')
+        print 'Incorrect date format. Please, enter the correct date in ' \
+              'the format YYYY-MM-DD.'
         return False
     return True
 
 
 def main():
+    """
+    Получаю входные параметры с cmd, проверяю их на корректность и при наличии
+    получаю набор рейсов соотвествующий параметрам.
+    :param args: sIATA, dIATA, o_date, r_date
+    :return: str
+    """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True, help='IATA source airport code')
-    parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True, help='IATA destination airport code')
-    parser.add_argument('-odate', '--outbound_date', type=str, required=True, help='Outbound date, format Y-M-D',)
-    parser.add_argument('-rdate', '--return_date', type=str, help='Return date, format Y-M-D')
+    parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True,
+                        help='Source airport IATA code')
+    parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True,
+                        help='Destination airport IATA code')
+    parser.add_argument('-o_date', '--outbound_date', type=str, required=True,
+                        help='Outbound date, format YYYY-MM-DD',)
+    parser.add_argument('-r_date', '--return_date', type=str,
+                        help='Return date, format YYYY-MM-DD')
     args = parser.parse_args()
 
-    if inspect_data(args):
-        f = Finding(args)
-        f.get_content()
-        if f.content:
-            f.get_flights()
-            f.mix()
-            f.sort()
-            print(f)
+    if inspect_date(args):
+        find_fl = FindingFlights(args)
+        if find_fl.source_name and find_fl.destin_name:
+            find_fl.get_content()
+            if find_fl.content:
+                find_fl.get_flights()
+                find_fl.get_flights_full()
+                find_fl.sort()
+                print find_fl
+            else:
+                print "Couldn't find flights from {}({}) to {}({}) on" \
+                      " {}/{}".format(
+                          find_fl.source_name,
+                          args.sourceIATA,
+                          find_fl.destin_name,
+                          args.destinationIATA,
+                          args.outbound_date,
+                          args.return_date, )
         else:
-            print("Couldn't find flights from {}({}) to {}({}) on {}/{}").format(
-                args.source_name,
-                args.sourceIATA,
-                args.destination_name,
-                args.destinationIATA,
-                args.outbound_date,
-                args.return_date,
-            )
+            print 'IATA-code is not correct. Enter correct code.'
+
 
 if __name__ == "__main__":
     main()
