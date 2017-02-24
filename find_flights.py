@@ -41,9 +41,9 @@ def main():
                         help='Source airport IATA code')
     parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True,
                         help='Destination airport IATA code')
-    parser.add_argument('-o_date', '--outbound_date', type=str, required=True,
+    parser.add_argument('-odate', '--outbound_date', type=str, required=True,
                         help='Outbound date, format YYYY-MM-DD',)
-    parser.add_argument('-r_date', '--return_date', type=str,
+    parser.add_argument('-rdate', '--return_date', type=str,
                         help='Return date, format YYYY-MM-DD')
     args = parser.parse_args()
 
