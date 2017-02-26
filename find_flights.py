@@ -15,9 +15,9 @@ def inspect_date(args):
     :return: True/False
     """
     try:
-        datetime.strptime(args.outbound_date, '%Y-%m-%d')
+        args.outbound_date = datetime.strptime(args.outbound_date, '%Y-%m-%d')
         if args.return_date:
-            datetime.strptime(args.return_date, '%Y-%m-%d')
+            args.return_date = datetime.strptime(args.return_date, '%Y-%m-%d')
             args.one_way = ''
         else:
             args.return_date = args.outbound_date
@@ -49,7 +49,7 @@ def main():
 
     if inspect_date(args):
         find_fl = FindingFlights(args)
-        if find_fl.source_name and find_fl.destin_name:
+        if find_fl.args.source_name and find_fl.args.destination_name:
             find_fl.get_content()
             if find_fl.content:
                 find_fl.get_flights()
@@ -59,9 +59,9 @@ def main():
             else:
                 print "Couldn't find flights from {}({}) to {}({}) on" \
                       " {}/{}".format(
-                          find_fl.source_name,
+                          find_fl.args.source_name,
                           args.sourceIATA,
-                          find_fl.destin_name,
+                          find_fl.args.destination_name,
                           args.destinationIATA,
                           args.outbound_date,
                           args.return_date, )
