@@ -3,9 +3,16 @@
 даты и получение в соотвествии с параметрами всевозможных вариантов рейсов
 библиотеки Finding"""
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 
 from library_find import FindingFlights
+
+
+def create_args(args):
+    args.sourceIATA = args.sourceIATA or args.sIATA
+    args.destinationIATA = args.destinationIATA or args.dIATA
+    args.outbound_date = args.outbound_date or args.odate
+    args.return_date = args.return_date or args.rdate
 
 
 def inspect_date(args):
@@ -14,19 +21,25 @@ def inspect_date(args):
     :param args
     :return: True/False
     """
-    try:
-        args.outbound_date = datetime.strptime(args.outbound_date, '%Y-%m-%d')
+    print args, date.today()
+    if args.outbound_date.date() >= date.today():
         if args.return_date:
-            args.return_date = datetime.strptime(args.return_date, '%Y-%m-%d')
-            args.one_way = ''
+            if args.return_date >= args.outbound_date:
+                args.return_date = args.return_date.strftime('%Y-%m-%d')
+                args.outbound_date = args.outbound_date.strftime('%Y-%m-%d')
+                args.one_way = ''
+                return True
+            else:
+                print 'Return_date is not correct. Enter correct date.'
+                return False
         else:
+            args.outbound_date = args.outbound_date.strftime('%Y-%m-%d')
             args.return_date = args.outbound_date
             args.one_way = 'on'
-    except ValueError:
-        print 'Incorrect date format. Please, enter the correct date in ' \
-              'the format YYYY-MM-DD.'
+            return True
+    else:
+        print 'Outbound_date is not correct. Enter correct date.'
         return False
-    return True
 
 
 def main():
@@ -36,16 +49,22 @@ def main():
     :param args: sIATA, dIATA, o_date, r_date
     :return: str
     """
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('-sIATA', '--sourceIATA', type=str, required=True,
+    parser.add_argument('sIATA', type=str, nargs='?')
+    parser.add_argument('dIATA', type=str, nargs='?')
+    parser.add_argument('odate', type=lambda d: datetime.strptime(d, '%Y-%m-%d'), nargs='?')
+    parser.add_argument('rdate', type=lambda d: datetime.strptime(d, '%Y-%m-%d'), nargs='?')
+    parser.add_argument('-sIATA', '--sourceIATA', type=str,
                         help='Source airport IATA code')
-    parser.add_argument('-dIATA', '--destinationIATA', type=str, required=True,
+    parser.add_argument('-dIATA', '--destinationIATA',type=str,
                         help='Destination airport IATA code')
-    parser.add_argument('-odate', '--outbound_date', type=str, required=True,
-                        help='Outbound date, format YYYY-MM-DD',)
-    parser.add_argument('-rdate', '--return_date', type=str,
+    parser.add_argument('-odate', '--outbound_date', type=lambda d: datetime.strptime(d, '%Y-%m-%d'),
+                        help='Outbound date, format YYYY-MM-DD')
+    parser.add_argument('-rdate', '--return_date', type=lambda d: datetime.strptime(d, '%Y-%m-%d'),
                         help='Return date, format YYYY-MM-DD')
     args = parser.parse_args()
+    create_args(args)
 
     if inspect_date(args):
         find_fl = FindingFlights(args)
@@ -65,8 +84,6 @@ def main():
                           args.destinationIATA,
                           args.outbound_date,
                           args.return_date, )
-        else:
-            print 'IATA-code is not correct. Enter correct code.'
 
 
 if __name__ == "__main__":

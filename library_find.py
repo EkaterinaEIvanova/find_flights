@@ -8,18 +8,20 @@ from lxml import html
 class FindingFlights(object):
     """ args(sIATA, dIATA, o_date, r_date) --> flights_str/error_str """
     def __init__(self, args):
-        args.outbound_date = args.outbound_date.strftime('%Y-%m-%d')
-        args.return_date = args.return_date.strftime('%Y-%m-%d')
         self.args = args
+        self._url = 'http://www.flyniki.com/en/booking/flight/vacancy.php'
         self._headers = {'Content-Type': 'application/x-www-form-urlencoded',
-                         'Cookie': 'startConnection={}@{}@{}@{};ABSESS='
-                                   'kbfj0b77ueq4sh5s9gpg'
-                                   '8np392;'.format(self.args.sourceIATA,
-                                                    self.args.destinationIATA,
-                                                    self.args.outbound_date,
-                                                    self.args.return_date)}
-        self.args.source_name = self._get_airport(args.sourceIATA)
-        self.args.destination_name = self._get_airport(args.destinationIATA)
+                         'Cookie': 'startConnection={}@{}@{}@{};'
+                                   'ABSESS={}'.format(self.args.sourceIATA,
+                                            self.args.destinationIATA,
+                                            self.args.outbound_date,
+                                            self.args.return_date,
+                                            self._get_params(),
+                                                      )}
+        dct = self._get_airport()
+        self.args.source_name = dct[self.args.sourceIATA]
+        self.args.destination_name = dct[self.args.destinationIATA]
+        self._get_airport()
         self.outbound_data = ''
         self.return_data = ''
         self.currency = ''
@@ -27,15 +29,21 @@ class FindingFlights(object):
         self.flights = []
         self.flights_full = []
 
-    def _get_airport(self, iata):
+    def _get_params(self):
+        resp = requests.post(self._url)
+        self._url = resp.request.url
+        return resp.request.headers['Cookie'].split(' ')[1][7:-1]
+
+    def _get_airport(self):
         """
         Делаю запрос на получение имени аэропорта соотвествующего IATA.
         :param args: iata:
         :return:airport_name or None
         """
-        payload = {'searchfor': 'departures',
+        url = 'http://www.flyniki.com/en/site/json/suggestAirport.php'
+        payload = {'searchfor': 'destinations',
                    'searchflightid': '0',
-                   'departures[]': [iata, 'City, airport'],
+                   'departures[]': [self.args.sourceIATA, 'City, airport'],
                    'destinations[]': ['', 'City, airport'],
                    'suggestsource[0]': 'activeairports',
                    'withcountries': '0',
@@ -45,29 +53,28 @@ class FindingFlights(object):
                    'get_full_suggest_list': 'true',
                    'routesource[0]': 'airberlin',
                    'routesource[1]': 'partner'}
-        url = 'http://www.flyniki.com/en/site/json/suggestAirport.php'
         content = requests.post(url, params=payload,
                                 headers=self._headers).json()
         if content.get('suggestList'):
-            for dct in content.get('suggestList'):
-                if dct['code'] == iata:
-                    return dct['name']
+            return {dct['code']: dct['name']
+                    for dct in content.get('suggestList')
+                    if dct['code'] == self.args.destinationIATA or
+                    dct['code'] == self.args.sourceIATA}
         else:
-            return None
+            return {self.args.destinationIATA: '',
+                    self.args.sourceIATA: ''}
 
     def get_content(self):
         """
         Делаю http-запрос к сайту по исходным параметрам и получаю ответ.
         _url, _headers, _data --> content
         """
-        url = 'http://www.flyniki.com/en/booking/flight/vacancy.php'
-        payload = {'sid': 'ba9d2bc0faf73daf9c69'}
         data = {'_ajax[templates][]':
                 ['main', 'priceoverview', 'infos', 'flightinfo'],
                 '_ajax[requestParams]'
-                '[departure]': '{}'.format(self.args.source_name),
+                '[departure]': self.args.source_name,
                 '_ajax[requestParams]'
-                '[destination]': '{}'.format(self.args.destination_name),
+                '[destination]': self.args.destination_name,
                 '_ajax[requestParams][returnDeparture]': '',
                 '_ajax[requestParams][returnDestination]': '',
                 '_ajax[requestParams]'
@@ -80,7 +87,7 @@ class FindingFlights(object):
                 '_ajax[requestParams][openDateOverview]': '',
                 '_ajax[requestParams]'
                 '[oneway]': '{}'.format(self.args.one_way), }
-        content = requests.post(url, headers=self._headers, params=payload,
+        content = requests.post(self._url, headers=self._headers,
                                 data=data).json()
         if content.get('templates') and content['templates'].get('main'):
             if content['templates']['main'] != \
