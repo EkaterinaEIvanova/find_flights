@@ -13,33 +13,36 @@ class FindingFlights(object):
         self._headers = {'Content-Type': 'application/x-www-form-urlencoded',
                          'Cookie': 'startConnection={}@{}@{}@{};'
                                    'ABSESS={}'.format(self.args.sourceIATA,
-                                            self.args.destinationIATA,
-                                            self.args.outbound_date,
-                                            self.args.return_date,
-                                            self._get_params(),
-                                                      )}
+                                                      self.args.destinationIATA,
+                                                      self.args.outbound_date,
+                                                      self.args.return_date,
+                                                      self._get_absess())}
         dct = self._get_airport()
         self.args.source_name = dct[self.args.sourceIATA]
         self.args.destination_name = dct[self.args.destinationIATA]
         self._get_airport()
-        self.outbound_data = ''
-        self.return_data = ''
         self.currency = ''
         self.content = []
         self.flights = []
         self.flights_full = []
 
-    def _get_params(self):
+    def _get_absess(self):
+        """
+        Делаю запрос для получение Cookie.ABSESS url для основного запроса.
+        :return:Cookie.ABSESS
+        """
         resp = requests.post(self._url)
         self._url = resp.request.url
+        # Выцепляю из Cookie-строки значение ABSESS
         return resp.request.headers['Cookie'].split(' ')[1][7:-1]
 
     def _get_airport(self):
         """
-        Делаю запрос на получение имени аэропорта соотвествующего IATA.
-        :param args: iata:
-        :return:airport_name or None
+        Делаю запрос на получение имени аэропортов соотвествующих введеным IATA.
+        :return:{airport_IATA: airport_names}
         """
+        dctr = {self.args.destinationIATA: '',
+                self.args.sourceIATA: ''}
         url = 'http://www.flyniki.com/en/site/json/suggestAirport.php'
         payload = {'searchfor': 'destinations',
                    'searchflightid': '0',
@@ -56,13 +59,11 @@ class FindingFlights(object):
         content = requests.post(url, params=payload,
                                 headers=self._headers).json()
         if content.get('suggestList'):
-            return {dct['code']: dct['name']
-                    for dct in content.get('suggestList')
-                    if dct['code'] == self.args.destinationIATA or
-                    dct['code'] == self.args.sourceIATA}
-        else:
-            return {self.args.destinationIATA: '',
-                    self.args.sourceIATA: ''}
+            dctr.update(
+                {dct['code']: dct['name'] for dct in content.get('suggestList')
+                 if dct['code'] == self.args.destinationIATA
+                 or dct['code'] == self.args.sourceIATA})
+        return dctr
 
     def get_content(self):
         """
@@ -72,9 +73,9 @@ class FindingFlights(object):
         data = {'_ajax[templates][]':
                 ['main', 'priceoverview', 'infos', 'flightinfo'],
                 '_ajax[requestParams]'
-                '[departure]': self.args.source_name,
+                '[departure]': self.args.sourceIATA,
                 '_ajax[requestParams]'
-                '[destination]': self.args.destination_name,
+                '[destination]': self.args.destinationIATA,
                 '_ajax[requestParams][returnDeparture]': '',
                 '_ajax[requestParams][returnDestination]': '',
                 '_ajax[requestParams]'
@@ -89,9 +90,8 @@ class FindingFlights(object):
                 '[oneway]': '{}'.format(self.args.one_way), }
         content = requests.post(self._url, headers=self._headers,
                                 data=data).json()
-        if content.get('templates') and content['templates'].get('main'):
-            if content['templates']['main'] != \
-                    ' <div id="vacancy_infos"></div> ':
+        if content and content.get('templates'):
+            if content['templates']['priceoverview']:
                 self.content = content['templates']['main']
 
     def get_flights(self):
@@ -101,12 +101,6 @@ class FindingFlights(object):
         """
         if self.content:
             tree = html.fromstring(self.content)
-            self.outbound_data = tree.xpath('// *[@id="flighttables"]/div[1]/'
-                                            'div[1]/div[1]/div/div/text()')[0]
-            if not self.args.one_way:
-                self.return_data = tree.xpath('//*[@id="flighttables"]/div[3]/'
-                                              'div[1]/div[1]/div/div/'
-                                              'text()')[0]
             table = tree.xpath('.//table[@class="flighttable"]')[0]
             self.currency = table.xpath('./thead/tr//th/text()')[-1]
             classes = table.xpath('./thead/tr[1]/td/div/label//text()')
@@ -154,15 +148,10 @@ class FindingFlights(object):
         """ Формирую заголовок таблицы и вывожу рейсы на
         экран в наглядном виде.
         :return: flights_str"""
-        if self.args.one_way:
-            head = 'Outbound ' \
-                   'flight:{}'.format(self.outbound_data.encode('utf-8'))
-        else:
-            head = 'Outbound flight:{}\nReturn flight:{}\n' \
-                   'Outbound flight{}Return flight{}Total ' \
-                   'price'.format(self.outbound_data.encode('utf-8'),
-                                  self.return_data.encode('utf-8'),
-                                  ' '*(len(' '.join(self.flights[0][0]))-11),
+        head = 'Outbound flight'
+        if not self.args.one_way:
+            head = 'Outbound flight{}Return flight{}Total ' \
+                   'price'.format(' '*(len(' '.join(self.flights[0][0]))-11),
                                   ' '*(len(' '.join(self.flights[1][0]))-9))
         flights_str = '\n'.join([' '.join(fl) for fl in self.flights_full])
         return '{}\n{}'.format(head, flights_str.encode('utf-8'))
