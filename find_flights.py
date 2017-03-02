@@ -14,7 +14,6 @@ def create_args(args):
     :param args
     :return: True/False
     """
-    print args
     args.sourceIATA = args.sourceIATA or args.sIATA
     if not args.sourceIATA:
         print 'No source IATA. Enter correct IATA.'

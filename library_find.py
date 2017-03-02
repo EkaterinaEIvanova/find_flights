@@ -9,14 +9,9 @@ class FindingFlights(object):
     """ args(sIATA, dIATA, o_date, r_date) --> flights_str/error_str """
     def __init__(self, args):
         self.args = args
-        self._url = 'http://www.flyniki.com/en/booking/flight/vacancy.php'
+        self._url = ''
         self._headers = {'Content-Type': 'application/x-www-form-urlencoded',
-                         'Cookie': 'startConnection={}@{}@{}@{};'
-                                   'ABSESS={}'.format(self.args.sourceIATA,
-                                                      self.args.destinationIATA,
-                                                      self.args.outbound_date,
-                                                      self.args.return_date,
-                                                      self._get_absess())}
+                         'Cookie': 'ABSESS={}'.format(self._get_parametrs())}
         dct = self._get_airport()
         self.args.source_name = dct[self.args.sourceIATA]
         self.args.destination_name = dct[self.args.destinationIATA]
@@ -26,27 +21,28 @@ class FindingFlights(object):
         self.flights = []
         self.flights_full = []
 
-    def _get_absess(self):
+    def _get_parametrs(self):
         """
-        Делаю запрос для получение Cookie.ABSESS url для основного запроса.
-        :return:Cookie.ABSESS
+        Делаю запрос для получение Cookie.ABSESS и url для основного запроса.
+        :return:params{url, absess}
         """
-        resp = requests.post(self._url)
+        url = 'http://www.flyniki.com/en/booking/flight/vacancy.php'
+        resp = requests.post(url)
         self._url = resp.request.url
-        # Выцепляю из Cookie-строки значение ABSESS
+        # Получаю из Cookie-строки значение ABSESS
         return resp.request.headers['Cookie'].split(' ')[1][7:-1]
 
     def _get_airport(self):
         """
-        Делаю запрос на получение имени аэропортов соотвествующих введеным IATA.
-        :return:{airport_IATA: airport_names}
+        Делаю запрос на получение имени аэропортов соотвествующих введеным IATA
+        :return:airports_name{airport_IATA: airport_names}
         """
-        dctr = {self.args.destinationIATA: '',
-                self.args.sourceIATA: ''}
+        airports_name = {self.args.destinationIATA: '',
+                         self.args.sourceIATA: ''}
         url = 'http://www.flyniki.com/en/site/json/suggestAirport.php'
-        payload = {'searchfor': 'destinations',
+        payload = {'searchfor': 'departures',
                    'searchflightid': '0',
-                   'departures[]': [self.args.sourceIATA, 'City, airport'],
+                   'departures[]': ['', 'City, airport'],
                    'destinations[]': ['', 'City, airport'],
                    'suggestsource[0]': 'activeairports',
                    'withcountries': '0',
@@ -56,19 +52,20 @@ class FindingFlights(object):
                    'get_full_suggest_list': 'true',
                    'routesource[0]': 'airberlin',
                    'routesource[1]': 'partner'}
-        content = requests.post(url, params=payload,
+        content = requests.post(url,
+                                params=payload,
                                 headers=self._headers).json()
-        if content.get('suggestList'):
-            dctr.update(
+        if content.get('fullSuggestList'):
+            airports_name.update(
                 {dct['code']: dct['name'] for dct in content.get('suggestList')
                  if dct['code'] == self.args.destinationIATA
                  or dct['code'] == self.args.sourceIATA})
-        return dctr
+        return airports_name
 
     def get_content(self):
         """
         Делаю http-запрос к сайту по исходным параметрам и получаю ответ.
-        _url, _headers, _data --> content
+        _url, _headers, data --> content
         """
         data = {'_ajax[templates][]':
                 ['main', 'priceoverview', 'infos', 'flightinfo'],
@@ -91,7 +88,10 @@ class FindingFlights(object):
         content = requests.post(self._url, headers=self._headers,
                                 data=data).json()
         if content and content.get('templates'):
+            # Если ресы в данную дату остувуют, то значение
+            # content['templates']['priceoverview'] всегда пустое
             if content['templates']['priceoverview']:
+                self.content = content['templates']['main']
                 self.content = content['templates']['main']
 
     def get_flights(self):
@@ -112,9 +112,8 @@ class FindingFlights(object):
                     for i, clss in enumerate(classes):
                         # Получаю стоимость билетов в ячейках td[5-9] для
                         # всех классов из списка classes.
-                        price = row.xpath('./td[{}]/span/text()|./td[{}]/'
-                                          'label/div[1]/span//text()'.
-                                          format(i+5, i+5))
+                        price = row.xpath('./td[{}]/label/div[1]'
+                                          '/span//text()'.format(i + 5))
                         if price:
                             flights.append(data + [clss, self.currency,
                                                    price[0].replace(',', '')])
@@ -132,13 +131,11 @@ class FindingFlights(object):
         else:
             for o_fl in self.flights[0]:
                 for r_fl in self.flights[1]:
-                    if unicode(o_fl[-1]) != u' \u2014 ' and\
-                                    unicode(r_fl[-1]) != u' \u2014 ':
-                        self.flights_full.append(o_fl + ['  '] +
-                                                 r_fl + ['  '] +
-                                                 [self.currency,
-                                                  str(float(o_fl[-1]) +
-                                                      float(r_fl[-1]))])
+                    self.flights_full.append(o_fl + ['  '] +
+                                             r_fl + ['  '] +
+                                             [self.currency,
+                                              str(float(o_fl[-1]) +
+                                                  float(r_fl[-1]))])
 
     def sort(self):
         """ Сортировка по возрастанию стоимости перелета. """
