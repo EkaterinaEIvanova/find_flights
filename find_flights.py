@@ -15,16 +15,16 @@ def create_args(args):
     :return: True/False
     """
     args.sourceIATA = args.sIATA or args.sourceIATA
-    if not args.sourceIATA:
-        print 'No source IATA. Enter correct IATA.'
+    if not (args.sourceIATA and args.sourceIATA.isalpha()):
+        print 'No correct source IATA. Enter correct IATA.'
         return False
     args.destinationIATA = args.dIATA or args.destinationIATA
-    if not args.destinationIATA:
-        print 'No destination IATA. Enter correct IATA.'
+    if not (args.destinationIATA and args.destinationIATA.isalpha()):
+        print 'No correct destination IATA. Enter correct IATA.'
         return False
     args.outbound_date = args.odate or args.outbound_date
     if not args.outbound_date:
-        print 'No outbound date. Enter correct outbound date.'
+        print 'No correct outbound date. Enter correct outbound date.'
         return False
     args.return_date = args.rdate or args.return_date
     if args.return_date:
