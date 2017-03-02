@@ -14,25 +14,26 @@ def create_args(args):
     :param args
     :return: True/False
     """
-    args.sourceIATA = args.sourceIATA or args.sIATA
+    args.sourceIATA = args.sIATA or args.sourceIATA
     if not args.sourceIATA:
         print 'No source IATA. Enter correct IATA.'
         return False
-    args.destinationIATA = args.destinationIATA or args.dIATA
+    args.destinationIATA = args.dIATA or args.destinationIATA
     if not args.destinationIATA:
         print 'No destination IATA. Enter correct IATA.'
         return False
-    args.outbound_date = args.outbound_date or args.odate
+    args.outbound_date = args.odate or args.outbound_date
     if not args.outbound_date:
         print 'No outbound date. Enter correct outbound date.'
         return False
+    args.return_date = args.rdate or args.return_date
     if args.return_date:
-        args.return_date = args.return_date or args.rdate
         args.one_way = ''
+        return True
     else:
         args.return_date = args.outbound_date
         args.one_way = 'on'
-    return True
+        return True
 
 
 def inspect_date(args):
@@ -83,26 +84,19 @@ def main():
 
     if create_args(args) and inspect_date(args):
         find_fl = FindingFlights(args)
-        if find_fl.args.source_name and find_fl.args.destination_name:
-            find_fl.get_content()
-            if find_fl.content:
-                find_fl.get_flights()
-                find_fl.get_flights_full()
-                find_fl.sort()
-                print find_fl
-            else:
-                print "Couldn't find flights from {}({}) to {}({}) on" \
-                      " {}/{}".format(
-                          find_fl.args.source_name,
-                          args.sourceIATA,
-                          find_fl.args.destination_name,
-                          args.destinationIATA,
-                          args.outbound_date,
-                          args.return_date, )
+        find_fl.get_content()
+        if find_fl.content:
+            find_fl.get_flights()
+            find_fl.get_flights_full()
+            find_fl.sort()
+            print find_fl
         else:
-            print "Source IATA {} or destination IATA {} no found. " \
-                  "Enter correct IATAs." .format(args.sourceIATA,
-                                                 args.destinationIATA)
+            print "Couldn't find flights from {} to {} on" \
+                  " {}/{}".format(
+                      args.sourceIATA,
+                      args.destinationIATA,
+                      args.outbound_date,
+                      args.return_date, )
 
 
 if __name__ == "__main__":

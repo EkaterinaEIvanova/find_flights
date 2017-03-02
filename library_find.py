@@ -9,13 +9,6 @@ class FindingFlights(object):
     """ args(sIATA, dIATA, o_date, r_date) --> flights_str/error_str """
     def __init__(self, args):
         self.args = args
-        self._url = ''
-        self._headers = {'Content-Type': 'application/x-www-form-urlencoded',
-                         'Cookie': 'ABSESS={}'.format(self._get_parametrs())}
-        dct = self._get_airport()
-        self.args.source_name = dct[self.args.sourceIATA]
-        self.args.destination_name = dct[self.args.destinationIATA]
-        self._get_airport()
         self.currency = ''
         self.content = []
         self.flights = []
@@ -28,45 +21,19 @@ class FindingFlights(object):
         """
         url = 'http://www.flyniki.com/en/booking/flight/vacancy.php'
         resp = requests.post(url)
-        self._url = resp.request.url
-        # Получаю из Cookie-строки значение ABSESS
-        return resp.request.headers['Cookie'].split(' ')[1][7:-1]
-
-    def _get_airport(self):
-        """
-        Делаю запрос на получение имени аэропортов соотвествующих введеным IATA
-        :return:airports_name{airport_IATA: airport_names}
-        """
-        airports_name = {self.args.destinationIATA: '',
-                         self.args.sourceIATA: ''}
-        url = 'http://www.flyniki.com/en/site/json/suggestAirport.php'
-        payload = {'searchfor': 'departures',
-                   'searchflightid': '0',
-                   'departures[]': ['', 'City, airport'],
-                   'destinations[]': ['', 'City, airport'],
-                   'suggestsource[0]': 'activeairports',
-                   'withcountries': '0',
-                   'withoutroutings': '0',
-                   'promotion[id]': '',
-                   'promotion[type]': '',
-                   'get_full_suggest_list': 'true',
-                   'routesource[0]': 'airberlin',
-                   'routesource[1]': 'partner'}
-        content = requests.post(url,
-                                params=payload,
-                                headers=self._headers).json()
-        if content.get('fullSuggestList'):
-            airports_name.update(
-                {dct['code']: dct['name'] for dct in content.get('suggestList')
-                 if dct['code'] == self.args.destinationIATA
-                 or dct['code'] == self.args.sourceIATA})
-        return airports_name
+        return {'url': resp.request.url,
+                # Получаю из Cookie-строки значение ABSESS
+                'absess': resp.request.headers['Cookie'].split(' ')[1][7:-1]}
 
     def get_content(self):
         """
         Делаю http-запрос к сайту по исходным параметрам и получаю ответ.
         _url, _headers, data --> content
         """
+        params = self._get_parametrs()
+        url = params['url']
+        headers = {'Content-Type': 'application/x-www-form-urlencoded',
+                   'Cookie': 'ABSESS={}'.format(params['absess'])}
         data = {'_ajax[templates][]':
                 ['main', 'priceoverview', 'infos', 'flightinfo'],
                 '_ajax[requestParams]'
@@ -85,10 +52,9 @@ class FindingFlights(object):
                 '_ajax[requestParams][openDateOverview]': '',
                 '_ajax[requestParams]'
                 '[oneway]': '{}'.format(self.args.one_way), }
-        content = requests.post(self._url, headers=self._headers,
-                                data=data).json()
+        content = requests.post(url, headers=headers, data=data).json()
         if content and content.get('templates'):
-            # Если ресы в данную дату остувуют, то значение
+            # Если рейсы в запрашиваемые даты остувуют, то значение
             # content['templates']['priceoverview'] всегда пустое
             if content['templates']['priceoverview']:
                 self.content = content['templates']['main']
