@@ -58,7 +58,6 @@ class FindingFlights(object):
             # content['templates']['priceoverview'] всегда пустое
             if content['templates']['priceoverview']:
                 self.content = content['templates']['main']
-                self.content = content['templates']['main']
 
     def get_flights(self):
         """
@@ -75,13 +74,13 @@ class FindingFlights(object):
                 for row in table.xpath('./tbody/tr[position() mod 2 = 1]'):
                     data = row.xpath('./td[2]/span/*/text()|td[3]/text()|./'
                                      'td[4]/span/text()')
-                    for i, clss in enumerate(classes):
+                    for i, cabin_class in enumerate(classes):
                         # Получаю стоимость билетов в ячейках td[5-9] для
                         # всех классов из списка classes.
                         price = row.xpath('./td[{}]/label/div[1]'
                                           '/span//text()'.format(i + 5))
                         if price:
-                            flights.append(data + [clss, self.currency,
+                            flights.append(data + [cabin_class, self.currency,
                                                    price[0].replace(',', '')])
                 self.flights.append(flights)
 
@@ -92,8 +91,7 @@ class FindingFlights(object):
         flights --> flights_full
         """
         if self.args.one_way:
-            self.flights_full = [fl for fl in self.flights[0]
-                                 if unicode(fl[-1]) != u' \u2014 ']
+            self.flights_full = [fl for fl in self.flights[0]]
         else:
             for o_fl in self.flights[0]:
                 for r_fl in self.flights[1]:
